@@ -5,10 +5,10 @@ version = "0.1.0"
 readme = open('README.md').read()
 
 setup(
-    name="feedWebGL2",
-    packages=["feedWebGL2"],
+    name="binary_classification_metrics",
+    packages=["binary_classification_metrics"],
     version=version,
-    description="Tools for implementing WebGL2 feedback processing stages for graphics preprocessing or other purposes",
+    description="Visualizations and other code for exploring binary classification metrics.",
     long_description=readme,
     include_package_data=True,
     author="Aaron Watters",
