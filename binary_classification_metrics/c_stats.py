@@ -16,6 +16,16 @@ class Length:
 
 L = Length()
 
+class Selected:
+    "number of entries before the threshold"
+
+    abbreviation = "TH"
+
+    def __call__(self, array, threshold=None):
+        return threshold
+
+TH = Selected()
+
 class ConditionalPositive:
     "The number of real positive cases in the data"
 
@@ -85,10 +95,24 @@ class Recall:
         Pa = P(array, threshold)
         if Pa > 0:
             return TP(array, threshold) / Pa
-        return 0  # default
+        return 1.0  # default
 
 TPR = Recall()
 recall = TPR
+
+class FalsePositiveRate:
+    "proportion of trues before the threshold of all trues"
+
+    abbreviation = "FPR"
+
+    def __call__(self, array, threshold):
+        fn = FN(array, threshold)
+        if fn > 0:
+            n = N(array)
+            return fn / n
+        return 0.0   # default
+
+FPR = FalsePositiveRate()
 
 # skip specificity TNR for now
 
@@ -99,7 +123,7 @@ class Precision:
 
     def __call__(self, array, threshold):
         if threshold <= 0:
-            return 0
+            return 1.0
         return TP(array, threshold) / threshold
 
 PPV = Precision()
@@ -180,6 +204,7 @@ class AveragePreference:
 
 ATP = AveragePreference()
 
+
 class AverageLogPreference:
 
     # use caching for mins and maxes
@@ -244,6 +269,74 @@ class AverageLogPreference:
 
 ALP = AverageLogPreference()
 
+
+class AreaUnderCurve:
+    
+    "area under the curve for two statistics"
+
+    def __init__(self, x_stat, y_stat, abbreviation=None):
+        if abbreviation is None:
+            abbreviation = "AUC(%s, %s)" % (x_stat.abbreviation, y_stat.abbreviation)
+        self.abbreviation = abbreviation
+        self.x_stat = x_stat
+        self.y_stat = y_stat
+
+    def curve_points(self, array, close=True):
+        points = []
+        x_stat = self.x_stat
+        y_stat = self.y_stat
+        for threshold in range(len(array) + 1):
+            x = x_stat(array, threshold)
+            y = y_stat(array, threshold)
+            points.append([x, y])
+        if close:
+            # drop verticals to y=0
+            [x, y] = points[-1]
+            points.append([x, 0])
+            [x, y] = points[0]
+            points.append([x, 0])
+        return points
+
+    def curve_area(self, array, points=None):
+        if points is None:
+            points = self.curve_points(array, close=True)
+        #print(points)
+        result = 0.0
+        [last_x, last_y] = points[-1]
+        for point in points:
+            [x, y] = point
+            base = x - last_x
+            height = 0.5 * (y + last_y)
+            result += base * height
+            [last_x, last_y] = point
+        return result
+
+    def __call__(self, array, threshold=None):
+        return self.curve_area(array)
+
+AUPR = AreaUnderCurve(recall, precision, "AUPR")
+
+AUROC = AreaUnderCurve(FPR, recall, "AUPR")
+
+ALL_METRICS = [
+    L,
+    TH,
+    P,
+    N,
+    TP,
+    TN,
+    FP,
+    FN,
+    TPR,
+    PPV,
+    F1,
+    PHI,
+    ATP,
+    ALP,
+    AUPR,
+    AUROC,
+]
+
 def RankOrder(*values):
     "convenience"
     return np.array(values, dtype=np.int)
@@ -254,16 +347,39 @@ def test():
     assert L(example) == 10
     assert P(example) == 5
     assert N(example) == 5
+    assert TH(example, 3) == 3
     assert TP(example, 3) == 2
     assert TN(example, 3) == 4
     assert FP(example, 3) == 3
     assert FN(example, 3) == 1
     assert TPR(example, 3) == 2/5.0
     assert PPV(example, 3) == 2/3.0
+    assert recall(RankOrder(1,0), 1) == 1.0
+    p = precision(RankOrder(1,0), 1)
+    assert p == 1.0, repr(p)
     f1 = F1(example, 3)
     assert f1 == 1.0/4.0, repr(f1)
     phi = PHI(example, 3)
     assert phi != 0, repr(phi)  #  smoke test
+    aupr = AUPR(RankOrder(1,0))
+    assert aupr == 1.0, repr(aupr)
+    aupr = AUPR(RankOrder(0,1,0,1,0,1,0))
+    assert int(aupr * 100) == 37, repr(aupr)
+    print()
+    auroc = AUROC(RankOrder(1,0))
+    assert auroc == 1.0, repr(auroc)
+    auroc = AUROC(RankOrder(0,1,0,1,0,1,0))
+    assert int(auroc * 100) == 50, repr(auroc)
+    auroc = AUROC(RankOrder(0,0,0,1,1))
+    assert int(auroc * 100) == 0, repr(auroc)
+    # more smoke tests
+    for metric in ALL_METRICS:
+        for threshold in range(len(example) + 1):
+            try:
+                assert metric(example, threshold) is not None, repr((None, example, threshold))
+            except:
+                print("exception at", threshold, "for", metric.abbreviation, metric.__doc__)
+                raise
     """
     for i in (0,1):
         for j in (0,1):
