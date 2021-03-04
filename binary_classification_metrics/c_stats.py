@@ -4,9 +4,22 @@ Following https://en.wikipedia.org/wiki/Evaluation_of_binary_classifiers
 """
 
 import numpy as np
-import combinatorics_helpers as ch
+#combinatorics_helpers as ch
 
-class Length:
+class Stat:
+
+    "abstract superclass for shared behavior"
+
+    def default_curve(self):
+        return AreaUnderCurve(TH, self)
+
+    def curve_points(self, array, close=True):
+        return self.default_curve().curve_points(array, close)
+
+    def curve_area(self, array, points=None):
+        return self.default_curve().curve_area(array, points)
+
+class Length(Stat):
     "data size"
 
     abbreviation = "L"
@@ -16,7 +29,7 @@ class Length:
 
 L = Length()
 
-class Selected:
+class Selected(Stat):
     "number of entries before the threshold"
 
     abbreviation = "TH"
@@ -26,7 +39,7 @@ class Selected:
 
 TH = Selected()
 
-class ConditionalPositive:
+class ConditionalPositive(Stat):
     "The number of real positive cases in the data"
 
     abbreviation = "P"
@@ -36,7 +49,7 @@ class ConditionalPositive:
 
 P = ConditionalPositive()
 
-class ConditionalNegative:
+class ConditionalNegative(Stat):
     "The number of real negative cases in the data"
 
     abbreviation = "N"
@@ -46,7 +59,7 @@ class ConditionalNegative:
 
 N = ConditionalNegative()
 
-class TruePositive:
+class TruePositive(Stat):
     "The number of trues before the threshold"
 
     abbreviation = "TP"
@@ -56,7 +69,7 @@ class TruePositive:
 
 TP = TruePositive()
 
-class TrueNegative:
+class TrueNegative(Stat):
     "The number of falses after the threshold"
 
     abbreviation = "TN"
@@ -66,7 +79,7 @@ class TrueNegative:
 
 TN = TrueNegative()
 
-class FalsePositive:
+class FalsePositive(Stat):
     "The number of trues after the threshold"
 
     abbreviation = "FP"
@@ -76,7 +89,7 @@ class FalsePositive:
 
 FP = FalsePositive()
 
-class FalseNegative:
+class FalseNegative(Stat):
     "The number of falses before the threshold"
 
     abbreviation = "FN"
@@ -86,7 +99,7 @@ class FalseNegative:
 
 FN = FalseNegative()
 
-class Recall:
+class Recall(Stat):
     "proportion of trues before the threshold of all trues"
 
     abbreviation = "TPR"
@@ -100,7 +113,7 @@ class Recall:
 TPR = Recall()
 recall = TPR
 
-class FalsePositiveRate:
+class FalsePositiveRate(Stat):
     "proportion of trues before the threshold of all trues"
 
     abbreviation = "FPR"
@@ -116,7 +129,7 @@ FPR = FalsePositiveRate()
 
 # skip specificity TNR for now
 
-class Precision:
+class Precision(Stat):
     "proportion of trues before the threshold of all results before the threshold"
 
     abbreviation = "PPV"
@@ -133,7 +146,7 @@ precision = PPV
 # skip FNR for now
 # skip FPR for now
 
-class F1score:
+class F1score(Stat):
 
     abbreviation = 'F1'
 
@@ -148,7 +161,7 @@ class F1score:
 
 F1 = F1score()
 
-class PhiCoefficient:
+class PhiCoefficient(Stat):
 
     """
     https://en.wikipedia.org/wiki/Matthews_correlation_coefficient
@@ -171,7 +184,7 @@ class PhiCoefficient:
 PHI = PhiCoefficient()
 
 # Specials
-class AveragePreference:
+class AveragePreference(Stat):
 
     "Average distance of true values before threshold to the threshold"
 
@@ -205,7 +218,7 @@ class AveragePreference:
 ATP = AveragePreference()
 
 
-class AverageLogPreference:
+class AverageLogPreference(Stat):
 
     # use caching for mins and maxes
     mins = {}
@@ -270,7 +283,7 @@ class AverageLogPreference:
 ALP = AverageLogPreference()
 
 
-class AreaUnderCurve:
+class AreaUnderCurve(Stat):
     
     "area under the curve for two statistics"
 
@@ -300,7 +313,7 @@ class AreaUnderCurve:
     def curve_area(self, array, points=None):
         if points is None:
             points = self.curve_points(array, close=True)
-        #print(points)
+        #(points)
         result = 0.0
         [last_x, last_y] = points[-1]
         for point in points:
@@ -345,6 +358,8 @@ def test():
     # threshold          1 2 3 4 5 6 7 8 9
     example = RankOrder(1,0,1,1,0,1,0,0,0,1)
     assert L(example) == 10
+    ca = L.curve_area(example)
+    assert ca == 100, repr(ca)
     assert P(example) == 5
     assert N(example) == 5
     assert TH(example, 3) == 3
