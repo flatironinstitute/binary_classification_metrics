@@ -1,8 +1,8 @@
 
 import numpy as np
 from numpy.linalg import norm
-import c_stats
-import combinatorics_helpers
+from . import c_stats
+from . import combinatorics_helpers
 
 class Ranker:
 
@@ -74,7 +74,12 @@ class ComboStat:
         m = ms[index - 1]
         points = m.curve_points(self.combo_array)
         area = m.curve_area(self.combo_array, points=points)
-        return (points, area)
+        return CurveInfo(points, area, self.column, self.combo_array, m)
+        
+class CurveInfo:
+
+    def __init__(self, points, area, column, combo_array, metric):
+        (self.points, self.area, self.column, self.combo_array, self.metric) = (points, area, column, combo_array, metric)
 
 def test():
     ranker = get_ranker(4,2)

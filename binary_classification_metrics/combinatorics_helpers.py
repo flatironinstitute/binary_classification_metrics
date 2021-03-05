@@ -83,7 +83,7 @@ class Combinations:
             result[:, i] = self.indexed_combination_array(index, n, k)
         return result
 
-    def limited_combinations(self, n, k, all_limit=10000, replace_limit=10e6):
+    def limited_combinations(self, n, k, all_limit=3000, replace_limit=10e6):
         "Return all combinations or a random selection if there are too many"
         assert all_limit < replace_limit
         cc = self.C(n, k)

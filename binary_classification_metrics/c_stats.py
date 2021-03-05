@@ -102,7 +102,7 @@ FN = FalseNegative()
 class Recall(Stat):
     "proportion of trues before the threshold of all trues"
 
-    abbreviation = "TPR"
+    abbreviation = "recall"
 
     def __call__(self, array, threshold):
         Pa = P(array, threshold)
@@ -132,7 +132,7 @@ FPR = FalsePositiveRate()
 class Precision(Stat):
     "proportion of trues before the threshold of all results before the threshold"
 
-    abbreviation = "PPV"
+    abbreviation = "precision"
 
     def __call__(self, array, threshold):
         if threshold <= 0:
@@ -219,6 +219,8 @@ ATP = AveragePreference()
 
 
 class AverageLogPreference(Stat):
+
+    abbreviation = "ALP"
 
     # use caching for mins and maxes
     mins = {}
@@ -329,7 +331,7 @@ class AreaUnderCurve(Stat):
 
 AUPR = AreaUnderCurve(recall, precision, "AUPR")
 
-AUROC = AreaUnderCurve(FPR, recall, "AUPR")
+AUROC = AreaUnderCurve(FPR, recall, "AUROC")
 
 ALL_METRICS = [
     L,
@@ -349,6 +351,10 @@ ALL_METRICS = [
     AUPR,
     AUROC,
 ]
+
+ABBREVIATION_TO_STATISTIC = {}
+for statistic in ALL_METRICS:
+    ABBREVIATION_TO_STATISTIC[statistic.abbreviation] = statistic
 
 def RankOrder(*values):
     "convenience"
