@@ -234,7 +234,7 @@ class AverageLogPreference(Stat):
             return maxes[key]
         test_array = np.zeros((for_length,))
         test_array[:count] = 1
-        (result, count1) = self.logsum(test_array)
+        (result, count1) = self.summation(test_array)
         assert count1 == count
         #print ("   max", test_array, count, result)
         maxes[key] = result
@@ -248,13 +248,13 @@ class AverageLogPreference(Stat):
             return mins[key]
         test_array = np.zeros((for_length,))
         test_array[-count:] = 1
-        (result, count1) = self.logsum(test_array)
+        (result, count1) = self.summation(test_array)
         assert count1 == count
         mins[key] = result
         #print ("   min", test_array, count, result)
         return result
 
-    def logsum(self, array):
+    def summation(self, array):
         sum = 0.0
         count = 0
         ln = len(array)
@@ -262,12 +262,12 @@ class AverageLogPreference(Stat):
             if array[i]:
                 sum += np.log(ln - i)
                 count += 1
-        # ("logsum", array, count, sum)
+        # ("summation", array, count, sum)
         return (sum, count)
 
     def __call__(self, array, threshold):
         truncated = array[:threshold]
-        (unnormalized, count) = self.logsum(truncated)
+        (unnormalized, count) = self.summation(truncated)
         if count < 1:
             return 0.0
         if count == threshold:
@@ -284,6 +284,73 @@ class AverageLogPreference(Stat):
 
 ALP = AverageLogPreference()
 
+
+class AverageSquaredPreference(AverageLogPreference):
+
+    abbreviation = "ASP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        sum = 0.0
+        count = 0
+        ln = len(array)
+        for i in range(len(array)):
+            if array[i]:
+                sum += (ln - i) ** 2
+                count += 1
+        # ("summation", array, count, sum)
+        return (sum, count)
+
+ASP = AverageSquaredPreference()
+
+
+class AverageExponentialPreference(AverageLogPreference):
+
+    abbreviation = "AEP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        sum = 0.0
+        count = 0
+        ln = len(array)
+        for i in range(len(array)):
+            if array[i]:
+                sum += np.exp(ln - i)
+                count += 1
+        # ("summation", array, count, sum)
+        return (sum, count)
+
+AEP = AverageExponentialPreference()
+
+
+class ReversedLogPreference(AverageLogPreference):
+
+    abbreviation = "RLP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        sum = 0.0
+        count = 0
+        ln = len(array)
+        M = np.log(ln + 1)
+        for i in range(ln):
+            if array[i]:
+                sum += M - np.log(i+1)
+                count += 1
+        # ("summation", array, count, sum)
+        return (sum, count)
+
+
+RLP = ReversedLogPreference()
 
 class AreaUnderCurve(Stat):
     
@@ -348,6 +415,9 @@ ALL_METRICS = [
     PHI,
     ATP,
     ALP,
+    ASP,
+    RLP,
+    AEP,
     AUPR,
     AUROC,
 ]
