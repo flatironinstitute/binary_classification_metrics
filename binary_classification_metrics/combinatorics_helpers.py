@@ -23,10 +23,34 @@ class Combinations:
         cache[key] = result
         return result
 
+    def n_subsets(self, nelts, max_size):
+        result = 0
+        assert max_size <= nelts
+        for size in range(max_size+1):
+            result += self.C(nelts, size)
+        return result
+
+    def indexed_subset(self, index, nelts, max_size):
+        assert nelts >= max_size >= 0
+        assert index >= 0
+        this_size = self.C(nelts, max_size)
+        # return at current max size if possible
+        if index < this_size:
+            return self.indexed_combination_array(index, nelts, max_size)
+        # otherwise return something smaller
+        return self.indexed_subset(index - this_size, nelts, max_size-1)
+
+    def all_subsets_of_max_size(self, nelts, max_size):
+        ln = self.n_subsets(nelts, max_size)
+        result = np.zeros((nelts, ln), dtype=np.int)
+        for i in range(ln):
+            result[:, i] = self.indexed_subset(i, nelts, max_size)
+        return result
+
     def all_combinations(self, n, k):
         "Combinations array with combinations as columns"
         cc = self.C(n, k)
-        result = np.zeros((n, cc))
+        result = np.zeros((n, cc), dtype=np.int)
         for i in range(cc):
             result[:, i] = self.indexed_combination_array(i, n, k)
         return result
@@ -63,36 +87,79 @@ class Combinations:
                 return self.indexed_combination_array(index-accept, n-1, k, i+1, array)
         return array
 
-    def random_combinations_no_replacement(self, n, k, number):
-        cc = self.C(n, k)
+    def random_combinations_no_replacement(self, n, k, number, C=None, ind=None):
+        if C is None:
+            C = self.C
+            ind = self.indexed_combination_array
+        #cc = self.C(n, k)
+        cc = C(n, k)
         assert number <= cc, "not enough possible combinations " + repr((cc, number))
         result = np.zeros((n, number))
         indices = list(range(cc))
         for i in range(number):
             choice = random.randrange(len(indices))
             index = indices[choice]
-            result[:, i] = self.indexed_combination_array(index, n, k)
+            #result[:, i] = self.indexed_combination_array(index, n, k)
+            result[:, i] = ind(index, n, k)
             del indices[choice]
         return result
 
-    def random_combinations_with_replacement(self, n, k, number):
-        cc = self.C(n, k)
+    def random_subsets_of_max_size_no_replacement(self, nelts, max_size, number):
+        return self.random_combinations_no_replacement(
+            n=nelts,
+            k=max_size,
+            number=number,
+            C=self.n_subsets,
+            ind=self.indexed_subset,
+        )
+
+    def random_combinations_with_replacement(self, n, k, number, C=None, ind=None):
+        if C is None:
+            C = self.C
+            ind = self.indexed_combination_array
+        cc = C(n, k)
         result = np.zeros((n, number))
         for i in range(number):
             index = random.randrange(cc)
-            result[:, i] = self.indexed_combination_array(index, n, k)
+            result[:, i] = ind(index, n, k)
         return result
 
-    def limited_combinations(self, n, k, all_limit=3000, replace_limit=10e6):
+    def random_subsets_of_max_size_with_replacement(self, nelts, max_size, number):
+        return self.random_combinations_with_replacement(
+            n=nelts,
+            k=max_size,
+            number=number,
+            C=self.n_subsets,
+            ind=self.indexed_subset,
+        )
+
+    def limited_combinations(self, n, k, all_limit=3000, replace_limit=10e6, C=None, replace=None, no_replace=None, all=None):
+        if C is None:
+            C = self.C
+            replace = self.random_combinations_with_replacement
+            no_replace = self.random_combinations_no_replacement
+            all = self.all_combinations
         "Return all combinations or a random selection if there are too many"
         assert all_limit < replace_limit
-        cc = self.C(n, k)
+        cc = C(n, k)
         if cc > replace_limit:
-            return self.random_combinations_with_replacement(n, k, all_limit)
+            return replace(n, k, all_limit)
         if cc > all_limit:
-            return self.random_combinations_no_replacement(n, k, all_limit)
+            return no_replace(n, k, all_limit)
         # otherwise return all
-        return self.all_combinations(n, k)
+        return all(n, k)
+
+    def limited_subsets_of_max_size(self, n, k, all_limit=3000, replace_limit=10e6, C=None, replace=None, no_replace=None, all=None):
+        return self.limited_combinations(
+            n=n, 
+            k=k, 
+            all_limit=all_limit, 
+            replace_limit=replace_limit, 
+            C=self.n_subsets, 
+            replace=self.random_combinations_with_replacement, 
+            no_replace=self.random_subsets_of_max_size_no_replacement, 
+            all=self.all_subsets_of_max_size,
+        )
 
 # singleton
 COMBOS = Combinations()
@@ -103,6 +170,22 @@ all_combinations = COMBOS.all_combinations
 random_combinations_no_replacement = COMBOS.random_combinations_no_replacement
 random_combinations_with_replacement = COMBOS.random_combinations_with_replacement
 limited_combinations = COMBOS.limited_combinations
+random_subsets_of_max_size_no_replacement = COMBOS.random_subsets_of_max_size_no_replacement
+random_subsets_of_max_size_with_replacement = COMBOS.random_subsets_of_max_size_with_replacement
+n_subsets = COMBOS.n_subsets
+all_subsets_of_max_size = COMBOS.all_subsets_of_max_size
+limited_subsets_of_max_size = COMBOS.limited_subsets_of_max_size
+
+def variations_of_max_size(combination, max_size):
+    combination = np.array(combination, dtype=np.int)
+    nelts = len(combination)
+    flips = limited_subsets_of_max_size(nelts, max_size)
+    result = np.zeros(flips.shape)
+    (M, nflips) = flips.shape
+    assert M == nelts
+    for i in range(nflips):
+        result[:, i] = np.logical_xor(flips[:, i], combination)
+    return result
 
 def binary_array(size, n):
     result = np.zeros((size,), dtype=np.int)
@@ -121,7 +204,7 @@ def all_subsets(nelts):
         result[:, i] = binary_array(nelts, i)
     return result
 
-def limited_subsets_no_replacement(nelts, size):
+def subsets_no_replacement(nelts, size):
     result = np.zeros((nelts, size), dtype=np.int)
     limit = 1 << nelts
     assert limit >= size
@@ -133,7 +216,7 @@ def limited_subsets_no_replacement(nelts, size):
         result[:, i] = binary_array(nelts, choice)
     return result
 
-def limited_subsets_with_replacement(nelts, size):
+def subsets_with_replacement(nelts, size):
     result = np.zeros((nelts, size), dtype=np.int)
     limit = 1 << nelts
     assert limit >= size
@@ -142,12 +225,12 @@ def limited_subsets_with_replacement(nelts, size):
         result[:, i] = binary_array(nelts, j)
     return result
 
-def limited_subsets(nelts, all_limit=3000, replace_limit=10e6):
+def all_limited_subsets(nelts, all_limit=3000, replace_limit=10e6):
     limit = 1 << nelts
     if limit > replace_limit:
-        return limited_subsets_with_replacement(nelts, all_limit)
+        return subsets_with_replacement(nelts, all_limit)
     if limit > all_limit:
-        return limited_subsets_no_replacement(nelts, all_limit)
+        return subsets_no_replacement(nelts, all_limit)
     return all_subsets(nelts)
 
 def test():
