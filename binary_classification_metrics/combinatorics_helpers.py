@@ -104,6 +104,52 @@ random_combinations_no_replacement = COMBOS.random_combinations_no_replacement
 random_combinations_with_replacement = COMBOS.random_combinations_with_replacement
 limited_combinations = COMBOS.limited_combinations
 
+def binary_array(size, n):
+    result = np.zeros((size,), dtype=np.int)
+    for i in range(size):
+        if (1 & n) > 0:
+            result[i] = 1
+        n = (n >> 1)
+    return result
+
+def all_subsets(nelts):
+    assert nelts > 0
+    size = 1 << nelts
+    # combinations are columns again
+    result = np.zeros((nelts, size), dtype=np.int)
+    for i in range(size):
+        result[:, i] = binary_array(nelts, i)
+    return result
+
+def limited_subsets_no_replacement(nelts, size):
+    result = np.zeros((nelts, size), dtype=np.int)
+    limit = 1 << nelts
+    assert limit >= size
+    choices = list(range(limit))
+    for i in range(size):
+        j = random.randrange(len(choices))
+        choice = choices[j]
+        del choices[j]
+        result[:, i] = binary_array(nelts, choice)
+    return result
+
+def limited_subsets_with_replacement(nelts, size):
+    result = np.zeros((nelts, size), dtype=np.int)
+    limit = 1 << nelts
+    assert limit >= size
+    for i in range(size):
+        j = random.randrange(limit)
+        result[:, i] = binary_array(nelts, j)
+    return result
+
+def limited_subsets(nelts, all_limit=3000, replace_limit=10e6):
+    limit = 1 << nelts
+    if limit > replace_limit:
+        return limited_subsets_with_replacement(nelts, all_limit)
+    if limit > all_limit:
+        return limited_subsets_no_replacement(nelts, all_limit)
+    return all_subsets(nelts)
+
 def test():
     for (n, k, expect) in [(1,1,1), (2,1,2), (3,3,1), (3,2,3), (5,3,10)]:
         cc = C(n,k)
