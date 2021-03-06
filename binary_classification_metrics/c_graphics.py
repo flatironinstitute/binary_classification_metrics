@@ -27,6 +27,12 @@ class RankOfRankingsViz:
         self.selected_rank = None
         self.scatter = None
         self.curves = None
+        self.combinations_array = None
+        self.check_change_array = widgets.Checkbox(
+            value=(combinations_array is None),
+            description='new array',
+            disabled=False,
+        )
         self.recalculate(combinations_array)
         self.make_widget()
 
@@ -36,7 +42,7 @@ class RankOfRankingsViz:
     def recalculate(self, combinations_array=None):
         if combinations_array is not None:
             self.combinations_array = combinations_array
-        else:
+        elif (self.combinations_array is None) or (self.check_change_array.value):
             self.combinations_array = ch.limited_combinations(self.n, self.k)
         self.ranker = rc.Ranker(self.combinations_array)
         self.rank = self.ranker.rank(self.primary_stat, self.secondary_stat)
@@ -58,7 +64,7 @@ class RankOfRankingsViz:
         self.reset_button = widgets.Button(description="reset stats")
         self.reset_button.on_click(self.reset_stats)
         self.stats_box = widgets.HBox([
-            self.primary_dropdown, self.secondary_dropdown, self.reset_button,
+            self.primary_dropdown, self.secondary_dropdown, self.reset_button, self.check_change_array,
         ])
         hwidth = width * 0.5
         self.scatter = dual_canvas.DualCanvasWidget(width=hwidth, height=hwidth)
@@ -163,7 +169,10 @@ class RankOfRankingsViz:
         scatter.reset_canvas()
         points = self.rank.pairs
         [xmax, ymax] = points.max(axis=0)
-        frame = scatter.frame_region(0, 0, hwidth, hwidth, 0, 0, xmax, ymax)
+        [xmin, ymin] = points.min(axis=0)
+        xlimit = max(xmax, 1)
+        ylimit = max(ymax, 1)
+        frame = scatter.frame_region(0, 0, hwidth, hwidth, 0, 0, xlimit, ylimit)
         background = frame.frame_rect(0, 0, xmax, ymax, name=True, color="cornsilk")
         background.on("mousemove", self.scatter_move)
         background.on("click", self.scatter_click)
@@ -174,9 +183,13 @@ class RankOfRankingsViz:
         self.scatter_highlight = frame.circle(x=c.r1, y=c.r2, r=5, name=True, events=False, color="red")
         qwidth = hwidth * 0.5
         cs = self.colors
-        scatter.text(x=qwidth, y=hwidth, text=c.metric1.abbreviation, align="center", background="white", color=cs[0])
+        def label_txt(abbrev, mn, Mx):
+            return "%s: %4.2f : %4.2f" % (abbrev, mn, Mx)
+        xlabel = label_txt(c.metric1.abbreviation, xmin, xmax)
+        scatter.text(x=qwidth, y=hwidth, text=xlabel, align="center", background="white", color=cs[0])
+        ylabel = label_txt(c.metric2.abbreviation, ymin, ymax)
         scatter.text(
-            x=hwidth, y=qwidth, text=c.metric2.abbreviation, align="center", background="white", degrees=90, color=cs[1])
+            x=hwidth, y=qwidth, text=ylabel, align="center", background="white", degrees=90, color=cs[1])
         scatter.fit(margin=10)
 
     def scatter_click(self, event):
