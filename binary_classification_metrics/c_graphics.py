@@ -93,13 +93,17 @@ class RankOfRankingsViz:
         colors = self.colors
         widths = [6,3]
         c = self.combo
+        cis = self.curve_infos
+        # share y axis
+        all_points = np.array(list(cis[0].points) + list(cis[1].points))
+        (_xmax, ymax) = all_points.max(axis=0)
         for index in (0,1):
             ci = self.curve_infos[index]
             color = colors[index]
             width = widths[index]
             points = ci.points
             apoints = np.array(points)
-            (xmax, ymax) = apoints.max(axis=0)
+            (xmax, _ymax) = apoints.max(axis=0)
             frame = curves.frame_region(0, 0, hwidth, hwidth, 0, 0, xmax, ymax)
             frames.append(frame)
             marker = frame.circle(x=0, y=0, color="red", r=9, name=True, events=False)
@@ -119,14 +123,14 @@ class RankOfRankingsViz:
                     tick_text_config= {"color": color},
                     )
             else:
-                frame.right_axis(
+                """frame.right_axis(
                     min_value= 0,
                     max_value= ymax,
                     #max_tick_count= 6,
                     axis_origin= {"x": xmax, "y": 0},
                     tick_line_config= {"color": color},
                     tick_text_config= {"color": color},
-                    )
+                    )"""
                 frame.top_axis(
                     min_value= 0,
                     max_value= xmax,
