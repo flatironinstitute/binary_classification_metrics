@@ -115,8 +115,26 @@ class RankOfRankingsViz:
             if index==0:
                 frame.lower_left_axes(
                     0, 0, xmax, ymax,
-                    tick_line_config= {color: color},
-                    tick_text_config= {color: color},
+                    tick_line_config= {"color": color},
+                    tick_text_config= {"color": color},
+                    )
+            else:
+                frame.right_axis(
+                    min_value= 0,
+                    max_value= ymax,
+                    #max_tick_count= 6,
+                    axis_origin= {"x": xmax, "y": 0},
+                    tick_line_config= {"color": color},
+                    tick_text_config= {"color": color},
+                    )
+                frame.top_axis(
+                    min_value= 0,
+                    max_value= xmax,
+                    #max_tick_count= 4,
+                    axis_origin= {"x": 0, "y": ymax},
+                    tick_line_config= {"color": color},
+                    tick_text_config= {"color": color},
+                    #add_end_points= True,
                     )
         curves.text(hwidth * 0.1, hwidth * 0.1, c.metric1.abbreviation + "=" + str(c.r1)[:5], color=colors[0], background="white")
         curves.text(hwidth * 0.1, hwidth * 0.2, c.metric2.abbreviation + "=" + str(c.r2)[:5], color=colors[1], background="white")
