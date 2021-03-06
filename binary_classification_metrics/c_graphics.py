@@ -11,21 +11,33 @@ from IPython.display import display
 
 class RankOfRankingsViz:
 
-    def __init__(self, primary_stat=st.AUPR, secondary_stat=st.AUROC, n=7, k=2, max_n=100, width=800):
+    def __init__(
+        self, 
+        primary_stat=st.AUPR, 
+        secondary_stat=st.AUROC, 
+        n=7, 
+        k=2, 
+        max_n=100, 
+        width=800,
+        combinations_array=None,
+        ):
         (self.primary_stat, self.secondary_stat, self.n, self.k, self.max_n) = (primary_stat, secondary_stat, n, k, max_n)
         self.width = width
         self.rank_of_rankings = None
         self.selected_rank = None
         self.scatter = None
         self.curves = None
-        self.recalculate()
+        self.recalculate(combinations_array)
         self.make_widget()
 
     def show(self):
         display(self.assembly)
 
-    def recalculate(self):
-        self.combinations_array = ch.limited_combinations(self.n, self.k)
+    def recalculate(self, combinations_array=None):
+        if combinations_array is not None:
+            self.combinations_array = combinations_array
+        else:
+            self.combinations_array = ch.limited_combinations(self.n, self.k)
         self.ranker = rc.Ranker(self.combinations_array)
         self.rank = self.ranker.rank(self.primary_stat, self.secondary_stat)
         self.recalculate_rank()
@@ -225,6 +237,21 @@ class RankOfRankingsViz:
             combo_array, width=width, height=20, background="#888", hover_text_callback=None,
             widget=self.selected_rank, margin=10,
         )
+
+    def perturb(self, errors):
+        combo = self.combo.combo_array
+        perturbation_array = ch.variations_of_max_size(combo, errors)
+        print ("perturbation size", len(combo), perturbation_array.shape)
+        ranker = RankOfRankingsViz(
+            primary_stat=self.primary_stat,
+            secondary_stat=self.secondary_stat,
+            n=len(combo),
+            k=1,
+            max_n=self.max_n,
+            width=self.width,
+            combinations_array=perturbation_array
+        )
+        return ranker
 
     def rankings_hover(self, col, row, array):
         combo = self.rank.combination(col)
