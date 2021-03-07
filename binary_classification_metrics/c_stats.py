@@ -235,7 +235,7 @@ class AverageLogPreference(Stat):
         test_array = np.zeros((for_length,))
         test_array[:count] = 1
         (result, count1) = self.summation(test_array)
-        assert count1 == count
+        #assert count1 == count
         #print ("   max", test_array, count, result)
         maxes[key] = result
         return result
@@ -249,7 +249,7 @@ class AverageLogPreference(Stat):
         test_array = np.zeros((for_length,))
         test_array[-count:] = 1
         (result, count1) = self.summation(test_array)
-        assert count1 == count
+        #assert count1 == count
         mins[key] = result
         #print ("   min", test_array, count, result)
         return result
@@ -352,6 +352,30 @@ class ReversedLogPreference(AverageLogPreference):
 
 RLP = ReversedLogPreference()
 
+class SquaredFalsePenalty(AverageLogPreference):
+    #xxxx currently broken
+
+    abbreviation = "SFP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        sum = 0.0
+        count = 0
+        ln = len(array)
+        M = np.log(ln + 1)
+        for i in range(ln):
+            if not array[i]:
+                sum += i * i
+                count += 1
+        # ("summation", array, count, sum)
+        return (sum, count)
+
+
+SFP = SquaredFalsePenalty()
+
 class AreaUnderCurve(Stat):
     
     "area under the curve for two statistics"
@@ -418,6 +442,7 @@ ALL_METRICS = [
     ASP,
     RLP,
     AEP,
+    #SFP,
     AUPR,
     AUROC,
 ]
