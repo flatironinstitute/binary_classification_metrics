@@ -275,7 +275,7 @@ class AverageLogPreference(Stat):
         #unnormalized = logs / count
         minimum = self.get_min(threshold, count)
         maximum = self.get_max(threshold, count)
-        assert minimum <= unnormalized <= maximum, repr((minimum, unnormalized, maximum))
+        assert minimum <= unnormalized <= maximum, repr((array, minimum, unnormalized, maximum))
         numerator = unnormalized - minimum
         denominator = maximum - minimum
         stat = numerator / denominator
@@ -365,16 +365,38 @@ class SquaredFalsePenalty(AverageLogPreference):
         sum = 0.0
         count = 0
         ln = len(array)
-        M = np.log(ln + 1)
         for i in range(ln):
             if not array[i]:
                 sum += i * i
                 count += 1
         # ("summation", array, count, sum)
-        return (sum, count)
+        return (sum, ln - count)
 
 
 SFP = SquaredFalsePenalty()
+
+class LogFalsePenalty(AverageLogPreference):
+    #xxxx currently broken
+
+    abbreviation = "LFP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        sum = 0.0
+        count = 0
+        ln = len(array)
+        for i in range(ln):
+            if not array[i]:
+                sum += np.log(i+1)
+                count += 1
+        # ("summation", array, count, sum)
+        return (sum, ln - count)
+
+
+LFP = LogFalsePenalty()
 
 class AreaUnderCurve(Stat):
     
@@ -442,7 +464,8 @@ ALL_METRICS = [
     ASP,
     RLP,
     AEP,
-    #SFP,
+    SFP,
+    LFP,
     AUPR,
     AUROC,
 ]
