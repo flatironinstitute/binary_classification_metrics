@@ -55,7 +55,7 @@ class RankOfRankingsViz:
     def make_widget(self):
         width = self.width
         self.info = widgets.HTML("<div>Ranker of rankings explorer.</div>")
-        self.n_k_slider = n_k_slider(self.set_n_k)
+        self.n_k_slider = n_k_slider(self.set_n_k, n=self.n, k=self.k)
         stat_abbrevs = sorted(st.ABBREVIATION_TO_STATISTIC.keys())
         self.primary_dropdown = widgets.Dropdown(
             options=stat_abbrevs, value=self.primary_stat.abbreviation, description='primary stat')
@@ -269,6 +269,7 @@ class RankOfRankingsViz:
 
     def jitter(self):
         combo = self.combo.combo_array
+        print("jittering", combo_str(combo))
         perturbation_array = ch.limited_jitter(combo)
         print ("perturbation size", len(combo), perturbation_array.shape)
         ranker = RankOfRankingsViz(
