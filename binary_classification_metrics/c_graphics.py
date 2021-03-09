@@ -267,6 +267,21 @@ class RankOfRankingsViz:
         )
         return ranker
 
+    def jitter(self):
+        combo = self.combo.combo_array
+        perturbation_array = ch.limited_jitter(combo)
+        print ("perturbation size", len(combo), perturbation_array.shape)
+        ranker = RankOfRankingsViz(
+            primary_stat=self.primary_stat,
+            secondary_stat=self.secondary_stat,
+            n=len(combo),
+            k=1,
+            max_n=self.max_n,
+            width=self.width,
+            combinations_array=perturbation_array
+        )
+        return ranker
+
     def rankings_hover(self, col, row, array):
         combo = self.rank.combination(col)
         s = combo_str(combo.combo_array)
