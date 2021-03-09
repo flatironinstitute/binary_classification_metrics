@@ -398,6 +398,29 @@ class LogFalsePenalty(AverageLogPreference):
 
 LFP = LogFalsePenalty()
 
+class SqrtFalsePenalty(AverageLogPreference):
+    #xxxx currently broken
+
+    abbreviation = "sqrtFP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        sum = 0.0
+        count = 0
+        ln = len(array)
+        for i in range(ln):
+            if not array[i]:
+                sum += np.sqrt(i+1)
+                count += 1
+        # ("summation", array, count, sum)
+        return (sum, ln - count)
+
+
+sqrtFP = SqrtFalsePenalty()
+
 class AreaUnderCurve(Stat):
     
     "area under the curve for two statistics"
@@ -446,19 +469,50 @@ AUPR = AreaUnderCurve(recall, precision, "AUPR")
 
 AUROC = AreaUnderCurve(FPR, recall, "AUROC")
 
+class MinimizedAUPR(AverageLogPreference):
+    #xxxx currently broken
+
+    abbreviation = "mAUPR"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+    list_prefix = [0,0]
+
+    def summation(self, array):
+        L = list(array)
+        count = int(array.sum())
+        muted = np.array(self.list_prefix + L, dtype=np.int)
+        sum1 = AUPR(muted)
+        return (sum1, count)
+
+mAUPR = MinimizedAUPR()
+
+class MaximizedAUPR(MinimizedAUPR):
+    #xxxx currently broken
+
+    abbreviation = "MAUPR"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+    list_prefix = [1,1]
+
+MAUPR = MaximizedAUPR()
+
 ALL_METRICS = [
-    L,
-    TH,
-    P,
-    N,
-    TP,
-    TN,
-    FP,
-    FN,
-    TPR,
-    PPV,
+    #L,
+    #TH,
+    #P,
+    #N,
+    #TP,
+    #TN,
+    #FP,
+    #FN,
+    #TPR,
+    #PPV,
     F1,
-    PHI,
+    #PHI,
     ATP,
     ALP,
     ASP,
@@ -468,6 +522,9 @@ ALL_METRICS = [
     LFP,
     AUPR,
     AUROC,
+    MAUPR,
+    mAUPR,
+    sqrtFP,
 ]
 
 ABBREVIATION_TO_STATISTIC = {}
