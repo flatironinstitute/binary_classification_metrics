@@ -7,6 +7,8 @@ class Combinations:
 
     def __init__(self):
         self.cache = {}
+        self.ss_cache = {}
+        self.jitter_cach = {}
 
     def C(self, n, k):
         assert n >= k, repr((n,k))
@@ -24,11 +26,54 @@ class Combinations:
         return result
 
     def n_subsets(self, nelts, max_size):
+        c = self.ss_cache
+        key = (nelts, max_size)
+        if key in c:
+            return c[key]
         result = 0
         assert max_size <= nelts
         for size in range(max_size+1):
             result += self.C(nelts, size)
+        c[key] = result
         return result
+
+    def n_jitter(self, n_hits, max_shift=None):
+        if max_shift is None:
+            max_shift = nhits
+        # nelts is not relevant
+        result = 0
+        for subset in range(max_shift + 1):
+            result += self.C(n_hits, subset) * (2 ** subset)
+        return result
+
+    def indexed_jitter(self, index, nhits, max_shift=None):
+        "array of 0 for no change or -1 for shift up or 1 for shift down"
+        if max_shift is None:
+            max_shift = nhits
+        if max_shift <= 0:
+            # trivial case -- jitter no elements
+            assert index == 0
+            return np.zeros((nhits,), dtype=np.int)
+        max_shift1 = max_shift - 1
+        n_jitter1 = self.n_jitter(nhits, max_shift1)
+        if (index < n_jitter1):
+            # jitter a smaller number of elements
+            return self.indexed_jitter(index, nhits, max_shift1)
+        # otherwise jitter exactly max_size elts
+        offset = index - n_jitter1
+        (combination_number, subset_number) = divmod(offset, (2 ** max_shift))
+        combo = self.indexed_combination_array(combination_number, nhits, max_shift)
+        subset = binary_array(max_shift, subset_number)
+        i_subset = 0
+        for i in range(nhits):
+            if combo[i]:
+                if subset[i_subset]:
+                    combo[i] = -1
+                else:
+                    combo[i] = 1 # redundant
+                i_subset += 1
+        assert i_subset == max_shift
+        return combo
 
     def indexed_subset(self, index, nelts, max_size):
         assert nelts >= max_size >= 0
@@ -47,6 +92,14 @@ class Combinations:
             result[:, i] = self.indexed_subset(i, nelts, max_size)
         return result
 
+    def all_jitters_of_max_size(self, nelts, max_size):
+        # nelts is not relevant
+        ln = self.n_jitter(nelts, max_size)
+        result = np.zeros((nelts, ln), dtype=np.int)
+        for i in range(ln):
+            result[:, i] = self.indexed_jitter(i, nelts, max_size)
+        return result
+
     def all_combinations(self, n, k):
         "Combinations array with combinations as columns"
         cc = self.C(n, k)
@@ -60,7 +113,7 @@ class Combinations:
         #print ("indexed index, n, k, i, array", index, n, k, i, array)
         if array is None:
             assert i == 0
-            array = np.zeros((n,), dtype=np.bool)
+            array = np.zeros((n,), dtype=np.int)
         assert n > 0
         assert 0 <= k <= n
         ln = len(array)
@@ -175,6 +228,70 @@ random_subsets_of_max_size_with_replacement = COMBOS.random_subsets_of_max_size_
 n_subsets = COMBOS.n_subsets
 all_subsets_of_max_size = COMBOS.all_subsets_of_max_size
 limited_subsets_of_max_size = COMBOS.limited_subsets_of_max_size
+indexed_jitter = COMBOS.indexed_jitter
+indexed_combination_array = COMBOS.indexed_combination_array
+n_jitter = COMBOS.n_jitter
+
+def jitter_array(combination_array):
+    n = len(combination_array)
+    k = int(sum(combination_array))
+    num = n_jitter(k, k)
+    result = np.zeros((n, num), dtype=np.int)
+    for i in range(num):
+        jt = indexed_jitter(i, k)
+        result[:, i] = apply_jitter(jt, combination_array)
+    return dedup_combos(result)
+
+def dedup_combos(combos):
+    (n, num) = combos.shape
+    S = set()
+    for i in range(num):
+        S.add(tuple(combos[:, i]))
+    result = np.zeros( (n, len(S)))
+    for (i, c) in enumerate(S):
+        result[:, i] = c
+    return result
+
+def limited_jitter(combination_array, all_limit=3000, replace_limit=20000):
+    n = len(combination_array)
+    k = int(sum(combination_array))
+    num = n_jitter(k, k)
+    #print ("selecting jitter from", num)
+    if num > replace_limit:
+        result = np.zeros((n, all_limit), dtype=np.int)
+        for i in range(all_limit):
+            choice = random.randrange(num)
+            jt = indexed_jitter(choice, k)
+            result[:, i] = apply_jitter(jt, combination_array)
+        return dedup_combos(result)
+    all_jitter = jitter_array(combination_array)
+    (n, max_jitter) = all_jitter.shape
+    if max_jitter <= all_limit:
+        return all_jitter
+    indices = list(range(max_jitter))
+    result = np.zeros((n, all_limit), dtype=np.int)
+    for i in range(all_limit):
+        choice = random.randrange(len(indices))
+        index = indices[choice]
+        del indices[choice]
+        c = all_jitter[:, index]
+        result[:, i] = c
+    return result
+
+def apply_jitter(jitter_array, to_array):
+    #print ("apply jitter", jitter_array, "to", to_array)
+    result = np.array(to_array, dtype=np.int)
+    jindex = 0
+    for index in range(len(to_array)):
+        if to_array[index]:
+            jitter = jitter_array[jindex]
+            if jitter < 0 and index > 0:
+                (result[index], result[index-1]) = (result[index-1], result[index])
+            elif jitter > 0 and index < len(to_array) - 1:
+                (result[index], result[index+1]) = (result[index+1], result[index])
+            jindex += 1
+    assert jindex == len(jitter_array)
+    return result
 
 def variations_of_max_size(combination, max_size):
     combination = np.array(combination, dtype=np.int)
@@ -188,12 +305,14 @@ def variations_of_max_size(combination, max_size):
     return result
 
 def binary_array(size, n):
+    n1 = n
     result = np.zeros((size,), dtype=np.int)
     for i in range(size):
         if (1 & n) > 0:
             result[i] = 1
         n = (n >> 1)
-    return result
+    assert n == 0, "number too large for array size " + repr((n1, size))
+    return result 
 
 def all_subsets(nelts):
     assert nelts > 0
@@ -285,7 +404,30 @@ def test():
             cc = lc[:, index]
             assert len(cc) == n
             assert np.count_nonzero(cc) == k
-
+    print ("...jitter...")
+    for nhits in range(1, 4):
+        print()
+        test_array = indexed_combination_array(nhits * 2 + 1, n=10, k=nhits)
+        max_jitter = n_jitter(nhits, nhits)
+        print("Nhits", nhits, test_array)
+        try:
+            for index in range(1000000):
+                jt = indexed_jitter(index, nhits)
+                applied = apply_jitter(jt, test_array)
+                print ("   ", index, jt, applied)
+        except AssertionError:
+            print("  assertion error")
+            assert index == max_jitter
+        print()
+    test_array = indexed_combination_array(155, 12, 4)
+    jittered = jitter_array(test_array)
+    print (test_array, "jitterred")
+    for i in range(jittered.shape[1]):
+        print("   ", i, " :: ", jittered[:, i])
+    print (test_array, "limited jitterred", 3)
+    jittered = limited_jitter(test_array, all_limit=3, replace_limit=12)
+    for i in range(jittered.shape[1]):
+        print("   ", i, " :: ", jittered[:, i])
 
 if __name__ == "__main__":
     test()
