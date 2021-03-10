@@ -295,6 +295,24 @@ class RankOfRankingsViz:
 def combo_str(combo):
     return "".join([str(c) for c in combo])
 
+def str_to_combo(s):
+    test = set(c for c in s)
+    assert test == set(["1", "0"]), "string must be 0's and 1's only: " + repr(s)
+    L = [int(c) for c in s]
+    A = np.array(L, dtype=np.int)
+    return A
+
+def jitter_string(s):
+    combo = str_to_combo(s)
+    perturbation_array = ch.limited_jitter(combo)
+    print ("jittering", s)
+    ranker = RankOfRankingsViz(
+        n=len(s),
+        k=1,
+        combinations_array=perturbation_array,
+    )
+    return ranker
+
 class curve_circle_callbacks:
 
     def __init__(self, circle, in_frame, threshold, viz, x, y, marker):
