@@ -17,6 +17,8 @@ setup(
     install_requires=[
         "jp_doodle",
         "jp_proxy_widget",
+        "feedWebGL2",
+        "h5py",
         ],
     license="MIT"
 )
