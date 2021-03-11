@@ -214,6 +214,26 @@ class Combinations:
             all=self.all_subsets_of_max_size,
         )
 
+def limited_index_selection(max_index, all_limit=3000, replace_limit=100000):
+    # XXXX refactor to use this everywhere and remove redundant lagic
+    if max_index <= all_limit:
+        return range(max_index)
+    r = range(all_limit)
+    result = list(r)
+    if max_index < replace_limit:
+        # selection with replacement
+        indices = list(range(max_index))
+        for i in r:
+            choice = random.randrange(len(indices))
+            index = indices[choice]
+            del indices[choice]
+            result[i] = choice
+    else:
+        for i in r:
+            index = random.randrange(max_index)
+            result[i] = index
+    return result
+
 # singleton
 COMBOS = Combinations()
 
@@ -240,6 +260,40 @@ def jitter_array(combination_array):
     for i in range(num):
         jt = indexed_jitter(i, k)
         result[:, i] = apply_jitter(jt, combination_array)
+    return dedup_combos(result)
+
+def flip_combo_bits(array, combo_array):
+    s = (n,) = array.shape
+    assert combo_array.shape == s
+    result = np.array(array, dtype=np.int)
+    for i in range(n):
+        if combo_array[i]:
+            result[i] = 1 - array[i]
+    return result
+
+def jitter_and_perturb(combination_array, flip_bits=1):
+    n = len(combination_array)
+    k = int(sum(combination_array))
+    jnum = n_jitter(k, k)
+    cnum = C(n, flip_bits)
+    num = jnum * cnum
+    chosen_indices = limited_index_selection(num)
+    ln = len(chosen_indices)
+    result = np.zeros((n, ln), dtype=np.int)
+    for i in range(ln):
+        index = chosen_indices[i]
+        (jitter_index, c_index) = divmod(index, cnum)
+        jt = indexed_jitter(jitter_index, k)
+        jittered = apply_jitter(jt, combination_array)
+        #print ("            jt", jt, "jittered", jittered)
+        combo = indexed_combination_array(c_index, n, flip_bits)
+        jittered_and_flipped = flip_combo_bits(jittered, combo)
+        #print ("            combo", combo, "jittered", jittered_and_flipped)
+        # sanity chack
+        if 1:
+            sflipped = sum(jittered_and_flipped)
+            assert sflipped - flip_bits <= sum(combination_array) <= sflipped + flip_bits
+        result[:, i] = jittered_and_flipped
     return dedup_combos(result)
 
 def dedup_combos(combos):
@@ -428,6 +482,16 @@ def test():
     jittered = limited_jitter(test_array, all_limit=3, replace_limit=12)
     for i in range(jittered.shape[1]):
         print("   ", i, " :: ", jittered[:, i])
+    print ("...jitter and perturb...")
+    test_array = indexed_combination_array(50, 15, 2)
+    flip = 1
+    print("   testing with", test_array, "with", flip, "flips")
+    jf = jitter_and_perturb(test_array, flip)
+    print("    got", jf.shape)
+    jf = jf[:, :10]  # just look at the first 10
+    for i in range(jf.shape[1]):
+        print("        ", jf[:, i])
+    print ("done.")
 
 if __name__ == "__main__":
     test()
