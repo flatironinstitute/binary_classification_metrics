@@ -43,6 +43,34 @@ class IndexStandardDeviation(Stat):
 
 ISD = IndexStandardDeviation()
 
+class AverageSquaredRunLength(Stat):
+    "average length of string of 0's or 1's."
+
+    abbreviation = "SRL"
+
+    def __call__(self, array, threshold=None):
+        ln = len(array)
+        if ln < 1:
+            return 0
+        n_runs = 0
+        sum_squared_lengths = 0
+        current_run_start = 0
+        for i in range(1, ln):
+            if array[i-1] != array[i]:
+                n_runs += 1
+                current_run_length = i - current_run_start
+                sum_squared_lengths += current_run_length ** 2
+                current_run_start = i
+            else:
+                pass
+        # final run
+        n_runs += 1
+        current_run_length = ln - current_run_start
+        sum_squared_lengths += current_run_length ** 2
+        return sum_squared_lengths / float(n_runs)
+
+SRL = AverageSquaredRunLength()
+
 class Selected(Stat):
     "number of entries before the threshold"
 
@@ -287,7 +315,7 @@ class AverageLogPreference(Stat):
         # ("summation", array, count, sum)
         return (sum, count)
 
-    def __call__(self, array, threshold, epsilon=1e-10):
+    def __call__(self, array, threshold, epsilon=1e-6):
         truncated = array[:threshold]
         (unnormalized, count) = self.summation(truncated)
         if count < 1:
@@ -297,7 +325,7 @@ class AverageLogPreference(Stat):
         #unnormalized = logs / count
         minimum = self.get_min(threshold, count)
         maximum = self.get_max(threshold, count)
-        assert minimum <= unnormalized <= maximum, repr((array, minimum, unnormalized, maximum))
+        assert minimum - epsilon <= unnormalized <= maximum + epsilon, repr((array, minimum, unnormalized, maximum))
         numerator = unnormalized - minimum
         denominator = maximum - minimum
         stat = 0.0
@@ -349,6 +377,27 @@ class VariancePenalizedPreference(AverageLogPreference):
         return (sum, count)
 
 VPP = VariancePenalizedPreference()
+
+class VarianceEnhancedPreference(AverageLogPreference):
+
+    abbreviation = "VEP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        count = int(array.sum())
+        ln = len(array)
+        asp = ASP(array, ln)
+        nstd = NSTD(array, ln)
+        # arbitrary parameter prevents stat from going to 1.0 when variance is 1.0
+        enhancement_factor = 0.5
+        asp1 = 1.0 - asp
+        sum = asp + enhancement_factor * asp1 * nstd
+        return (sum, count)
+
+VEP = VarianceEnhancedPreference()
 
 class AverageSquaredPreference(AverageLogPreference):
 
@@ -577,8 +626,10 @@ ALL_METRICS = [
     #TPR,
     #PPV,
     ISD,
+    SRL,
     NSTD,
     VPP,
+    VEP,
     F1,
     #PHI,
     ATP,
