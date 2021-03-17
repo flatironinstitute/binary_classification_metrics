@@ -29,6 +29,20 @@ class Length(Stat):
 
 L = Length()
 
+class IndexStandardDeviation(Stat):
+    "Standard deviation of hit indices."
+
+    abbreviation = "ISD"
+
+    def __call__(self, array, threshold=None):
+        (nz,) = np.nonzero(array)
+        if len(nz) > 1:
+            return nz.std()
+        else:
+            return 0.0
+
+ISD = IndexStandardDeviation()
+
 class Selected(Stat):
     "number of entries before the threshold"
 
@@ -232,13 +246,17 @@ class AverageLogPreference(Stat):
         key = (for_length, count)
         if key in maxes:
             return maxes[key]
-        test_array = np.zeros((for_length,))
-        test_array[:count] = 1
+        test_array = self.max_array(for_length, count)
         (result, count1) = self.summation(test_array)
         #assert count1 == count
         #print ("   max", test_array, count, result)
         maxes[key] = result
         return result
+
+    def max_array(self, for_length, count):
+        test_array = np.zeros((for_length,))
+        test_array[:count] = 1
+        return test_array
 
     def get_min(self, for_length, count):
         assert for_length >= count
@@ -246,13 +264,17 @@ class AverageLogPreference(Stat):
         key = (for_length, count)
         if key in mins:
             return mins[key]
-        test_array = np.zeros((for_length,))
-        test_array[-count:] = 1
+        test_array = self.min_array(for_length, count)
         (result, count1) = self.summation(test_array)
         #assert count1 == count
         mins[key] = result
         #print ("   min", test_array, count, result)
         return result
+
+    def min_array(self, for_length, count):
+        test_array = np.zeros((for_length,))
+        test_array[-count:] = 1
+        return test_array
 
     def summation(self, array):
         sum = 0.0
@@ -265,7 +287,7 @@ class AverageLogPreference(Stat):
         # ("summation", array, count, sum)
         return (sum, count)
 
-    def __call__(self, array, threshold):
+    def __call__(self, array, threshold, epsilon=1e-10):
         truncated = array[:threshold]
         (unnormalized, count) = self.summation(truncated)
         if count < 1:
@@ -278,12 +300,37 @@ class AverageLogPreference(Stat):
         assert minimum <= unnormalized <= maximum, repr((array, minimum, unnormalized, maximum))
         numerator = unnormalized - minimum
         denominator = maximum - minimum
-        stat = numerator / denominator
-        #print ("normalized", (count, threshold, minimum, maximum, numerator, denominator, stat))
+        stat = 0.0
+        if denominator > epsilon:
+            stat = numerator / denominator
+        #print ("normalized", (truncated, count, threshold, minimum, maximum, numerator, denominator, stat))
         return stat
 
 ALP = AverageLogPreference()
 
+
+class NormalizedIndexSTD(AverageLogPreference):
+
+    abbreviation = "NSTD"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def max_array(self, for_length, count):
+        h1 = int(count / 2)
+        h2 = count - h1
+        test_array = np.zeros((for_length,))
+        test_array[:h1] = 1
+        test_array[-h2:] = 1
+        return test_array
+
+    def summation(self, array):
+        sum = ISD(array)
+        count = int(array.sum())
+        return (sum, count)
+
+NSTD = NormalizedIndexSTD()
 
 class AverageSquaredPreference(AverageLogPreference):
 
@@ -511,6 +558,8 @@ ALL_METRICS = [
     #FN,
     #TPR,
     #PPV,
+    ISD,
+    NSTD,
     F1,
     #PHI,
     ATP,
