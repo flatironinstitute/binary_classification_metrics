@@ -337,6 +337,77 @@ class AverageLogPreference(Stat):
 ALP = AverageLogPreference()
 
 
+class NormalizedSquaredRunLength(AverageLogPreference):
+
+    abbreviation = "NSRL"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def max_array(self, for_length, count):
+        test_array = np.zeros((for_length,), dtype=np.int)
+        test_array[:count] = 1
+        return test_array
+
+    def min_array(self, for_length, count):
+        # invert if more than half full
+        assert count <= for_length
+        if count > for_length/2.0:
+            return 1 - self.min_array(for_length, for_length - count)
+        array = np.zeros((for_length,), dtype=np.int)
+        if count < 1:
+            return array
+        shift = for_length / float(count + 1)
+        assert shift >= 1.0, "I'm not considering shift < 1.0 now. unimplemented."
+        for i in range(count):
+            index = int((i+1) * shift)
+            array[index] = 1
+        return array
+
+    def min_array0(self, for_length, count):
+        # doesn't work for for_length=2, count=1
+        array = np.zeros((for_length,), dtype=np.int)
+        if count < 1:
+            return array
+        assert count <= for_length
+        (shift, extra) = divmod(for_length+1, count+1)
+        lastindex = 0
+        for i in range(count):
+            offset = shift
+            if extra > 0:
+                offset += 1
+                extra -= 1
+            index = lastindex + offset
+            array[index] = 1
+            lastindex = index
+        return array
+
+    def min_array_broken(self, for_length, count, test_array=None, min_index=None, max_index=None):
+        # recursively put a 1 at the center (wrong)
+        if test_array is None:
+            test_array = np.zeros((for_length,), dtype=np.int)
+            min_index = 0
+            max_index = for_length
+        assert 0 <= count <= max_index - min_index
+        assert min_index <= max_index <= for_length
+        if count > 0:
+            count1 = count - 1
+            center = int((min_index + max_index)/2)
+            test_array[center] = 1
+            left_count = int(count1 / 2)
+            right_count = count1 - left_count
+            self.min_array(for_length, left_count, test_array, min_index, center)
+            self.min_array(for_length, right_count, test_array, center+1, max_index)
+        return test_array
+
+    def summation(self, array):
+        sum = SRL(array)
+        count = int(array.sum())
+        return (sum, count)
+
+NSRL = NormalizedSquaredRunLength()
+
 class NormalizedIndexSTD(AverageLogPreference):
 
     abbreviation = "NSTD"
@@ -628,6 +699,7 @@ ALL_METRICS = [
     ISD,
     SRL,
     NSTD,
+    NSRL,
     VPP,
     VEP,
     F1,
