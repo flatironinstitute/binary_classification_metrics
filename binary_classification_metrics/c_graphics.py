@@ -52,7 +52,7 @@ class RankOfRankingsViz:
         self.combo = self.rank.combination(index)
         self.curve_infos = [self.combo.curve_info(i) for i in (1, 2)]
 
-    def make_widget(self):
+    def make_widget(self, debug=False):
         width = self.width
         self.info = widgets.HTML("<div>Ranker of rankings explorer.</div>")
         self.n_k_slider = n_k_slider(self.set_n_k, n=self.n, k=self.k, max_n=self.max_n)
@@ -69,19 +69,35 @@ class RankOfRankingsViz:
         hwidth = width * 0.5
         self.scatter = dual_canvas.DualCanvasWidget(width=hwidth, height=hwidth)
         self.curves = dual_canvas.DualCanvasWidget(width=hwidth, height=hwidth)
-        self.plots_box = widgets.HBox([
-            self.scatter, 
-            self.curves,
-        ])
+        if debug:
+            self.plots_box = widgets.HBox([
+                self.scatter.debugging_display(), 
+                self.curves.debugging_display(),
+            ])
+        else:
+            self.plots_box = widgets.HBox([
+                self.scatter, 
+                self.curves,
+            ])
         self.rebuild()
-        self.assembly = widgets.VBox([
-            self.info,
-            self.n_k_slider,
-            self.stats_box,
-            self.rank_of_rankings,
-            self.plots_box,
-            self.selected_rank,
-        ])
+        if debug:
+            self.assembly = widgets.VBox([
+                self.info,
+                self.n_k_slider,
+                self.stats_box,
+                self.rank_of_rankings.debugging_display(),
+                self.plots_box,
+                self.selected_rank.debugging_display(),
+            ])
+        else:
+            self.assembly = widgets.VBox([
+                self.info,
+                self.n_k_slider,
+                self.stats_box,
+                self.rank_of_rankings,
+                self.plots_box,
+                self.selected_rank,
+            ])
         return self.assembly
 
     def reset_stats(self, *ignored_args):
