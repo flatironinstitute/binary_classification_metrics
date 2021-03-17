@@ -332,6 +332,24 @@ class NormalizedIndexSTD(AverageLogPreference):
 
 NSTD = NormalizedIndexSTD()
 
+class VariancePenalizedPreference(AverageLogPreference):
+
+    abbreviation = "VPP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        count = int(array.sum())
+        ln = len(array)
+        asp = ASP(array, ln)
+        nstd = NSTD(array, ln)
+        sum = asp * (1.0 - nstd)
+        return (sum, count)
+
+VPP = VariancePenalizedPreference()
+
 class AverageSquaredPreference(AverageLogPreference):
 
     abbreviation = "ASP"
@@ -560,6 +578,7 @@ ALL_METRICS = [
     #PPV,
     ISD,
     NSTD,
+    VPP,
     F1,
     #PHI,
     ATP,
