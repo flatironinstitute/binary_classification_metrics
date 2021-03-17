@@ -358,11 +358,14 @@ class NormalizedSquaredRunLength(AverageLogPreference):
         array = np.zeros((for_length,), dtype=np.int)
         if count < 1:
             return array
-        shift = for_length / float(count + 1)
-        assert shift >= 1.0, "I'm not considering shift < 1.0 now. unimplemented."
+        shift = (for_length + 1) / float(count + 1)
+        #print ("for_length, count, shift", for_length, count, shift)
+        #assert shift >= 1.0, "I'm not considering shift < 1.0 now. unimplemented."
         for i in range(count):
-            index = int((i+1) * shift)
-            array[index] = 1
+            findex = (i + 1) * shift
+            index = int(findex)
+            array[index-1] = 1
+            #print(array, index, findex)
         return array
 
     def min_array0(self, for_length, count):
@@ -448,6 +451,50 @@ class VariancePenalizedPreference(AverageLogPreference):
         return (sum, count)
 
 VPP = VariancePenalizedPreference()
+
+class RunLengthPenalizedPreference(AverageLogPreference):
+
+    abbreviation = "RLPP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        count = int(array.sum())
+        ln = len(array)
+        asp = ASP(array, ln)
+        nsrl = NSRL(array, ln)
+        #sum = asp * (1.0 - nsrl)
+        sum = 1 - (1 - asp) * (1 + nsrl) / 2.0
+        return (sum, count)
+
+RLPP = RunLengthPenalizedPreference()
+
+class RunLengthEnhancedPreference(AverageLogPreference):
+
+    abbreviation = "REPP"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    #def get_min(self, for_length, count):
+    #    return 0.0  # fake it
+
+    def summation(self, array):
+        count = int(array.sum())
+        ln = len(array)
+        asp = ASP(array, ln)
+        nsrl = NSRL(array, ln)
+        enhancement_factor = 0.5
+        #asp1 = 1.0 - asp
+        sum = asp
+        if asp > enhancement_factor:
+            sum = asp + enhancement_factor * (asp - enhancement_factor) * nsrl
+        return (sum, count)
+
+REPP = RunLengthEnhancedPreference()
 
 class VarianceEnhancedPreference(AverageLogPreference):
 
@@ -696,6 +743,8 @@ ALL_METRICS = [
     #FN,
     #TPR,
     #PPV,
+    RLPP,
+    REPP,
     ISD,
     SRL,
     NSTD,
