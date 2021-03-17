@@ -301,7 +301,7 @@ def combo_str(combo):
 
 def str_to_combo(s):
     test = set(c for c in s)
-    assert test == set(["1", "0"]), "string must be 0's and 1's only: " + repr(s)
+    assert set(list(s)).issubset(set(["1", "0"])), "string must be 0's and 1's only: " + repr(s)
     L = [int(c) for c in s]
     A = np.array(L, dtype=np.int)
     return A
