@@ -131,6 +131,7 @@ class RankOfRankingsViz:
         # share y axis
         all_points = np.array(list(cis[0].points) + list(cis[1].points))
         (_xmax, ymax) = all_points.max(axis=0)
+        ymax = max(ymax, 0.01) # avoid boundary cases
         for index in (0,1):
             ci = self.curve_infos[index]
             color = colors[index]
@@ -138,6 +139,7 @@ class RankOfRankingsViz:
             points = ci.points
             apoints = np.array(points)
             (xmax, _ymax) = apoints.max(axis=0)
+            xmax = max(xmax, 0.01)  # avoid boundary cases
             frame = curves.frame_region(0, 0, hwidth, hwidth, 0, 0, xmax, ymax)
             frames.append(frame)
             marker = frame.circle(x=0, y=0, color="red", r=9, name=True, events=False)
