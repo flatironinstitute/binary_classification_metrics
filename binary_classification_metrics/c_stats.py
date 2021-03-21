@@ -5,6 +5,7 @@ Following https://en.wikipedia.org/wiki/Evaluation_of_binary_classifiers
 
 import numpy as np
 #combinatorics_helpers as ch
+import scipy.stats.mstats
 
 class Stat:
 
@@ -42,6 +43,34 @@ class IndexStandardDeviation(Stat):
             return 0.0
 
 ISD = IndexStandardDeviation()
+
+class InverseIndexGeometricMean(Stat):
+    "Inverted geometric mean of hit indices."
+
+    abbreviation = "IGM"
+
+    def __call__(self, array, threshold=None):
+        (nz,) = np.nonzero(array)
+        if len(nz) < 1:
+            return 0.0
+        inverted_indices = 1 + len(array) - nz
+        return scipy.stats.mstats.gmean(inverted_indices)
+
+IGM = InverseIndexGeometricMean()
+
+class IndexGeometricMean(Stat):
+    "Inverted geometric mean of hit indices."
+
+    abbreviation = "GM"
+
+    def __call__(self, array, threshold=None):
+        (nz,) = np.nonzero(array)
+        if len(nz) < 1:
+            return 0.0
+        indices1 = 1 + nz
+        return scipy.stats.mstats.gmean(indices1)
+
+GM = IndexGeometricMean()
 
 class AverageSquaredRunLength(Stat):
     "average length of string of 0's or 1's."
@@ -535,6 +564,42 @@ class RunLengthEnhancedPreference(AverageLogPreference):
 
 REPP = RunLengthEnhancedPreference()
 
+class NormalizedInverseGeometricMean(AverageLogPreference):
+
+    abbreviation = "NIGM"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    #def get_min(self, for_length, count):
+    #    return 0.0  # fake it
+
+    def summation(self, array):
+        count = int(array.sum())
+        sum = IGM(array)
+        return (sum, count)
+
+NIGM = NormalizedInverseGeometricMean()
+
+class NormalizedGeometricMean(AverageLogPreference):
+
+    abbreviation = "NGM"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    #def get_min(self, for_length, count):
+    #    return 0.0  # fake it
+
+    def summation(self, array):
+        count = int(array.sum())
+        sum = - GM(array)
+        return (sum, count)
+
+NGM = NormalizedGeometricMean()
+
 class VarianceEnhancedPreference(AverageLogPreference):
 
     abbreviation = "VEP"
@@ -770,7 +835,6 @@ AUPR = AreaUnderCurve(recall, precision, "AUPR")
 AUROC = AreaUnderCurve(FPR, recall, "AUROC")
 
 class MinimizedAUPR(AverageLogPreference):
-    #xxxx currently broken
 
     abbreviation = "mAUPR"
 
@@ -789,7 +853,6 @@ class MinimizedAUPR(AverageLogPreference):
 mAUPR = MinimizedAUPR()
 
 class MaximizedAUPR(MinimizedAUPR):
-    #xxxx currently broken
 
     abbreviation = "MAUPR"
 
@@ -811,20 +874,24 @@ ALL_METRICS = [
     #FN,
     #TPR,
     #PPV,
-    RLPP,
-    REPP,
-    ISD,
-    SRL,
-    MRL,
-    MLRL,
+    #RLPP,
+    #REPP,
+    #ISD,
+    #SRL,
+    #MRL,
+    #MLRL,
+    GM,
+    NGM,
+    IGM,
+    NIGM,
     NSTD,
     NSRL,
     NLRL,
     NMRL,
     II,
     LII,
-    VPP,
-    VEP,
+    #VPP,
+    #VEP,
     F1,
     #PHI,
     ATP,
@@ -832,8 +899,8 @@ ALL_METRICS = [
     ASP,
     RLP,
     AEP,
-    SFP,
-    LFP,
+    #SFP,
+    #LFP,
     AUPR,
     AUROC,
     MAUPR,
