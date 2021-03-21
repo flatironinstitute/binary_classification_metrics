@@ -71,6 +71,49 @@ class AverageSquaredRunLength(Stat):
 
 SRL = AverageSquaredRunLength()
 
+class MaximumSquaredRunLength(Stat):
+    "maximum squared length of string of 0's or 1's."
+
+    abbreviation = "MRL"
+
+    def __call__(self, array, threshold=None):
+        ln = len(array)
+        if ln < 1:
+            return 0
+        n_runs = 0
+        maximum_squared_run_length = 0
+        current_run_start = 0
+        for i in range(1, ln):
+            if array[i-1] != array[i]:
+                n_runs += 1
+                current_run_length = i - current_run_start
+                #sum_squared_lengths += current_run_length ** 2
+                maximum_squared_run_length = max(maximum_squared_run_length, self.length_transform(current_run_length))
+                current_run_start = i
+            else:
+                pass
+        # final run
+        n_runs += 1
+        current_run_length = ln - current_run_start
+        maximum_squared_run_length = max(maximum_squared_run_length, self.length_transform(current_run_length))
+        return maximum_squared_run_length
+
+    def length_transform(self, ln):
+        return ln * ln
+
+MRL = MaximumSquaredRunLength()
+
+
+class MaximumLogRunLength(MaximumSquaredRunLength):
+    "maximum log length of string of 0's or 1's."
+
+    abbreviation = "MLRL"
+
+    def length_transform(self, ln):
+        return np.log(ln)
+
+MLRL = MaximumLogRunLength()
+
 class Selected(Stat):
     "number of entries before the threshold"
 
@@ -368,48 +411,43 @@ class NormalizedSquaredRunLength(AverageLogPreference):
             #print(array, index, findex)
         return array
 
-    def min_array0(self, for_length, count):
-        # doesn't work for for_length=2, count=1
-        array = np.zeros((for_length,), dtype=np.int)
-        if count < 1:
-            return array
-        assert count <= for_length
-        (shift, extra) = divmod(for_length+1, count+1)
-        lastindex = 0
-        for i in range(count):
-            offset = shift
-            if extra > 0:
-                offset += 1
-                extra -= 1
-            index = lastindex + offset
-            array[index] = 1
-            lastindex = index
-        return array
-
-    def min_array_broken(self, for_length, count, test_array=None, min_index=None, max_index=None):
-        # recursively put a 1 at the center (wrong)
-        if test_array is None:
-            test_array = np.zeros((for_length,), dtype=np.int)
-            min_index = 0
-            max_index = for_length
-        assert 0 <= count <= max_index - min_index
-        assert min_index <= max_index <= for_length
-        if count > 0:
-            count1 = count - 1
-            center = int((min_index + max_index)/2)
-            test_array[center] = 1
-            left_count = int(count1 / 2)
-            right_count = count1 - left_count
-            self.min_array(for_length, left_count, test_array, min_index, center)
-            self.min_array(for_length, right_count, test_array, center+1, max_index)
-        return test_array
-
     def summation(self, array):
         sum = SRL(array)
         count = int(array.sum())
         return (sum, count)
 
 NSRL = NormalizedSquaredRunLength()
+
+
+class NormalizedMaximumRunLength(NormalizedSquaredRunLength):
+
+    abbreviation = "NMRL"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        sum = MRL(array)
+        count = int(array.sum())
+        return (sum, count)
+
+NMRL = NormalizedMaximumRunLength()
+
+class NormalizedLogRunLength(NormalizedSquaredRunLength):
+
+    abbreviation = "NLRL"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        sum = MLRL(array)
+        count = int(array.sum())
+        return (sum, count)
+
+NLRL = NormalizedLogRunLength()
 
 class NormalizedIndexSTD(AverageLogPreference):
 
@@ -464,9 +502,9 @@ class RunLengthPenalizedPreference(AverageLogPreference):
         count = int(array.sum())
         ln = len(array)
         asp = ASP(array, ln)
-        nsrl = NSRL(array, ln)
+        rl = NLRL(array, ln)
         #sum = asp * (1.0 - nsrl)
-        sum = 1 - (1 - asp) * (1 + nsrl) / 2.0
+        sum = 1 - (1 - asp) * (1 + rl) / 2.0
         return (sum, count)
 
 RLPP = RunLengthPenalizedPreference()
@@ -486,12 +524,13 @@ class RunLengthEnhancedPreference(AverageLogPreference):
         count = int(array.sum())
         ln = len(array)
         asp = ASP(array, ln)
-        nsrl = NSRL(array, ln)
-        enhancement_factor = 0.5
+        rl = NLRL(array, ln)
+        #enhancement_factor = 0.5
         #asp1 = 1.0 - asp
-        sum = asp
-        if asp > enhancement_factor:
-            sum = asp + enhancement_factor * (asp - enhancement_factor) * nsrl
+        #sum = asp
+        #if asp > enhancement_factor:
+        #    sum = asp + enhancement_factor * (asp - enhancement_factor) * nsrl
+        sum = asp + asp * (1 - asp) * rl
         return (sum, count)
 
 REPP = RunLengthEnhancedPreference()
@@ -547,19 +586,48 @@ class AverageExponentialPreference(AverageLogPreference):
     mins = {}
     maxes = {}
 
+    def hitstat(self, ln, i):
+        return np.exp(ln - i)
+
     def summation(self, array):
         sum = 0.0
         count = 0
         ln = len(array)
         for i in range(len(array)):
             if array[i]:
-                sum += np.exp(ln - i)
+                #sum += np.exp(ln - i)
+                sum += self.hitstat(ln, i)
                 count += 1
         # ("summation", array, count, sum)
         return (sum, count)
 
 AEP = AverageExponentialPreference()
 
+class InverseIndex(AverageExponentialPreference):
+
+    abbreviation = "II"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def hitstat(self, ln, i):
+        return 1.0 / (1.0 + i)
+
+II = InverseIndex()
+
+class LengthInverseIndex(AverageExponentialPreference):
+
+    abbreviation = "LII"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def hitstat(self, ln, i):
+        return 1.0 / (ln + i)
+
+LII = LengthInverseIndex()
 
 class ReversedLogPreference(AverageLogPreference):
 
@@ -747,8 +815,14 @@ ALL_METRICS = [
     REPP,
     ISD,
     SRL,
+    MRL,
+    MLRL,
     NSTD,
     NSRL,
+    NLRL,
+    NMRL,
+    II,
+    LII,
     VPP,
     VEP,
     F1,
