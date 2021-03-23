@@ -245,7 +245,8 @@ class RankOfRankingsViz:
 
     def set_rank_index(self, x):
         self.recalculate_rank(x)
-        self.draw_curves()
+        with self.curves.delay_redraw():
+            self.draw_curves()
         self.rebuild_combo_array()
 
     def rebuild_combo_array(self, threshold=None):
@@ -326,12 +327,25 @@ def str_to_combo(s):
 
 def jitter_string(s):
     combo = str_to_combo(s)
+    k = int(combo.sum())
     perturbation_array = ch.limited_jitter(combo)
     print ("jittering", s)
     ranker = RankOfRankingsViz(
         n=len(s),
-        k=1,
+        k=k,
         combinations_array=perturbation_array,
+    )
+    return ranker
+
+def cycle_ranking(s):
+    combo = str_to_combo(s)
+    k = int(combo.sum())
+    rotations = ch.combo_rotations(combo)
+    print ("rotating", s)
+    ranker = RankOfRankingsViz(
+        n=len(s),
+        k=k,
+        combinations_array=rotations,
     )
     return ranker
 

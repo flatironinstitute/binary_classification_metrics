@@ -296,6 +296,15 @@ def jitter_and_perturb(combination_array, flip_bits=1):
         result[:, i] = jittered_and_flipped
     return dedup_combos(result)
 
+def combo_rotations(combo):
+    (n,) = combo.shape
+    result = np.zeros((n,n), dtype=np.int)
+    for i in range(n):
+        split = n-i
+        result[:i, i] = combo[split:]
+        result[i:, i] = combo[:split]
+    return result
+
 def dedup_combos(combos):
     (n, num) = combos.shape
     S = set()
