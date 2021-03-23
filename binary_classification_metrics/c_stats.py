@@ -67,10 +67,26 @@ class IndexGeometricMean(Stat):
         (nz,) = np.nonzero(array)
         if len(nz) < 1:
             return 0.0
-        indices1 = 1 + nz
+        indices1 = len(array) + nz
+        #indices1 = 1 + nz
         return scipy.stats.mstats.gmean(indices1)
 
 GM = IndexGeometricMean()
+
+class IndexHarmonicMean(Stat):
+    "Harmonic mean of hit indices."
+
+    abbreviation = "HM"
+
+    def __call__(self, array, threshold=None):
+        (nz,) = np.nonzero(array)
+        if len(nz) < 1:
+            return 0.0
+        indices1 = len(array) + nz # dampened
+        #indices1 = 1 + nz
+        return scipy.stats.mstats.hmean(indices1)
+
+HM = IndexHarmonicMean()
 
 class AverageSquaredRunLength(Stat):
     "average length of string of 0's or 1's."
@@ -590,15 +606,27 @@ class NormalizedGeometricMean(AverageLogPreference):
     mins = {}
     maxes = {}
 
-    #def get_min(self, for_length, count):
-    #    return 0.0  # fake it
-
     def summation(self, array):
         count = int(array.sum())
         sum = - GM(array)
         return (sum, count)
 
 NGM = NormalizedGeometricMean()
+
+class NormalizedHarmonicMean(AverageLogPreference):
+
+    abbreviation = "NHM"
+
+    # use caching for mins and maxes
+    mins = {}
+    maxes = {}
+
+    def summation(self, array):
+        count = int(array.sum())
+        sum = - HM(array)
+        return (sum, count)
+
+NHM = NormalizedHarmonicMean()
 
 class VarianceEnhancedPreference(AverageLogPreference):
 
@@ -882,6 +910,8 @@ ALL_METRICS = [
     #MLRL,
     GM,
     NGM,
+    HM,
+    NHM,
     IGM,
     NIGM,
     NSTD,
