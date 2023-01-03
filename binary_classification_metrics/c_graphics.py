@@ -349,6 +349,16 @@ def cycle_ranking(s):
     )
     return ranker
 
+def irreducible_ranking(n, k):
+    irr = ch.irreducibles(n, k)
+    print ("rirreducibles", n,k)
+    ranker = RankOfRankingsViz(
+        n=n,
+        k=k,
+        combinations_array=irr,
+    )
+    return ranker
+
 class curve_circle_callbacks:
 
     def __init__(self, circle, in_frame, threshold, viz, x, y, marker):

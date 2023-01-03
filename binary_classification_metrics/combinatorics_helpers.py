@@ -305,6 +305,101 @@ def combo_rotations(combo):
         result[i:, i] = combo[:split]
     return result
 
+def irreducibles(n, k):
+    assert (k >= 2) and (n-k > 2), "Must have gaps of size at least 2 for this logic: " + repr((n, k))
+    compact = compact_extrema(n, k)
+    spread = spread_extrema(n, k)
+    if spread is not None:
+        result = np.hstack([compact, spread])
+    else:
+        result = compact
+    return result
+
+def compact_extrema(n, k):
+    combo = np.zeros((n,), dtype=np.int)
+    positive_combos = (n - k + 1) + (n - k) * (k - 1)
+    ncombos = positive_combos
+    result = np.zeros((n,ncombos), dtype=np.int)
+    index = 0
+    for n1 in range(n - k + 1):
+        combo[:] = 0
+        combo[n1:n1+k] = 1
+        result[:, index] = combo
+        index += 1
+        if n1 < n - k:
+            combo[:] = 0
+            for k1 in range(1, k):
+                combo[:] = 0
+                combo[n1:n1+k+1] = 1
+                combo[n1+k1] = 0
+                result[:, index] = combo
+                index += 1
+    assert index == ncombos, repr((index, ncombos))
+    return result
+
+def spread_extrema(n, k):
+    if n < 4 or k < 3 or n < k + 3:
+        return None
+    L = []
+    for split in range(1, k):
+        for offset in range(split+2, n - (k - split) + 1):
+            combo = np.zeros((n,), dtype=np.int)
+            combo[:split] = 1
+            shift_end = offset + (k - split)
+            combo[offset: shift_end] = 1
+            L.append(combo)
+    # also add reversals where end is 0
+    for c in L[:]:
+        if c[-1] == 0:
+            reversed = c[::-1]
+            L.append(reversed) 
+    ncombos = len(L)
+    result = np.zeros((n,ncombos), dtype=np.int)
+    for (i,c) in enumerate(L):
+        result[:, i] = c
+    return result
+
+def irreducibles0(n, k):
+    # saved version
+    assert (k >= 2) and (n-k > 2), "Must have gaps of size at least 2 for this logic: " + repr((n, k))
+    combo = np.zeros((n,), dtype=np.int)
+    positive_combos = (n - k + 1) + (n - k) * (k - 1)
+    negative_combos = (k - 1) + (k - 2) * (n - k - 1)
+    ncombos = positive_combos + negative_combos
+    result = np.zeros((n,ncombos), dtype=np.int)
+    index = 0
+    for n1 in range(n - k + 1):
+        combo[:] = 0
+        combo[n1:n1+k] = 1
+        result[:, index] = combo
+        index += 1
+        if n1 < n - k:
+            combo[:] = 0
+            for k1 in range(1, k):
+                combo[:] = 0
+                combo[n1:n1+k+1] = 1
+                combo[n1+k1] = 0
+                result[:, index] = combo
+                index += 1
+    for k1 in range(1, k):
+        combo[:] = 0
+        combo[:k1] = 1
+        combo[n-(k-k1):] = 1
+        #print ("negative base", combo)
+        result[:, index] = combo
+        index += 1
+        if k1 > 1:
+            for shift in range(0, n-k-1):
+                combo[:] = 0
+                combo[:k1-1] = 1
+                combo[n-(k-k1):] = 1
+                combo[k1 + shift] = 1
+                #print ("    negative shift", combo)
+                result[:, index] = combo
+                index += 1
+    assert index == ncombos, repr((index, ncombos))
+    return result
+
 def dedup_combos(combos):
     (n, num) = combos.shape
     S = set()
@@ -500,6 +595,19 @@ def test():
     jf = jf[:, :10]  # just look at the first 10
     for i in range(jf.shape[1]):
         print("        ", jf[:, i])
+    for (n, k) in [(7,3),(5,2),(8,2),(9,3),(10,4)]:
+        print()
+        print("... irreducible", n, k)
+        #ir = spread_extrema(n, k)
+        #ir = compact_extrema(n, k)
+        ir = irreducibles(n, k)
+        if ir is None:
+            print ("NONE")
+            continue
+        for i in range(ir.shape[1]):
+            print("        ", ir[:, i])
+        dd = dedup_combos(ir)
+        assert ir.shape == dd.shape, "DUPLICATES!"
     print ("done.")
 
 if __name__ == "__main__":

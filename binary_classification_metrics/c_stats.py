@@ -67,8 +67,8 @@ class IndexGeometricMean(Stat):
         (nz,) = np.nonzero(array)
         if len(nz) < 1:
             return 0.0
-        indices1 = len(array) + nz
-        #indices1 = 1 + nz
+        #indices1 = len(array) + nz  # SHIFTED!
+        indices1 = 1 + nz
         return scipy.stats.mstats.gmean(indices1)
 
 GM = IndexGeometricMean()
